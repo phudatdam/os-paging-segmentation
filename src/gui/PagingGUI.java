@@ -12,157 +12,186 @@ import java.awt.*;
 import java.util.List;
 import java.util.Random;
 
+
 public class PagingGUI extends JPanel {
 
-    private final JFrame window;
-    private final Paging paging;
-    private JList<String> rowHeader;
-    private DefaultTableModel tableModel;
-    private final String[] columnNames = {"", ""};
+    private final JFrame window; // Parent window
+    private final Paging paging; // Paging model
+    private DefaultTableModel memoryTableModel;
+    private JTable memoryTable;
+    private final String[] memoryColumnNames = {"", ""};
+    private JList<String> memoryRowHeader;
     private JButton addButton;
-    private JTable activePagesTable;
+    private JTable pagesTable;
+
 
     public PagingGUI(JFrame window) {
         this.window = window;
         this.paging = new Paging();
 
+        // Set up window and layout
         window.setSize(1400, 500);
         window.setTitle("Minh họa giải thuật Phân trang");
-        window.setLocationRelativeTo(null);
+        window.setLocationRelativeTo(null); // Center the window
         window.setVisible(true);
 
-        setBorder(new EmptyBorder(10, 10, 10, 10));
+        setBorder(new EmptyBorder(10, 10, 10, 10)); // Padding
         setLayout(new GridBagLayout()); // Use GridBagLayout
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.BOTH;
-        gbc.weighty = 1;
+        gbc.fill = GridBagConstraints.BOTH; // Fill the entire cell
+        gbc.weighty = 1; // Allow the panel to grow vertically
 
         // Create the three main panels
+        // Add memory table panel
+        gbc.weightx = 0.3;
         JPanel tablePanel = createMemoryPanel();
-        JPanel settingsAndAddProcessPanel = createSettingsAndAddProgramPanel();
-        JPanel processesPanel = createPagesTablePanel();
-
-        // Add the tablePanel with constraints
-        gbc.gridx = 0;
-        gbc.weightx = 0.3; // Adjust the weight as needed
         add(tablePanel, gbc);
 
-        // Add the settingsAndAddProcessPanel with constraints
-        gbc.gridx = 1;
-        gbc.weightx = 0.1; // Adjust the weight as needed
-        add(settingsAndAddProcessPanel, gbc);
+        // Add settings and add program panel
+        gbc.weightx = 0.1;
+        JPanel settingsAndAddProgramPanel = createSettingsAndAddProgramPanel();
+        add(settingsAndAddProgramPanel, gbc);
 
-        // Add the processesPanel with constraints
-        gbc.gridx = 2;
-        gbc.weightx = 0.6; // Give more weight to make it wider
-        add(processesPanel, gbc);
+        // Add pages table panel
+        gbc.weightx = 0.6;
+        JPanel pagesTablePanel = createPagesTablePanel();
+        add(pagesTablePanel, gbc);
     }
 
+
+    // Create the memory table panel
     private JPanel createMemoryPanel() {
+        // Create memory table panel with a border titled "Bộ nhớ"
         JPanel tablePanel = new JPanel(new BorderLayout());
         tablePanel.setBorder(new TitledBorder("Bộ nhớ"));
 
         Object[][] data = new Object[0][2];
-        tableModel = new DefaultTableModel(data, columnNames) {
+        memoryTableModel = new DefaultTableModel(data, memoryColumnNames) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         };
 
-        JTable table = new JTable(tableModel) {
+        // Set the table and cell color renderer
+        memoryTable = new JTable(memoryTableModel) {
             @Override
             public Component prepareRenderer(TableCellRenderer renderer, int row, int column) {
                 Component c = super.prepareRenderer(renderer, row, column);
                 Object value = getModel().getValueAt(row, column);
 
-                // Check if the value is "OS" and color the row light grey
-                if ("OS".equals(value)) {
-                    c.setBackground(Color.LIGHT_GRAY);
-                } else if (value != null && value.toString().contains("PID ")) {
+                if ("OS".equals(value)) { // Check if the value is "OS"
+                    c.setBackground(Color.LIGHT_GRAY); // Color the row light grey
+                } else if (value != null && value.toString().contains("CT ")) { // Check if the value contains program ID
                     try {
-                        String pidStr = value.toString().split(",")[0].split(" ")[1]; // Extract PID
+                        String pidStr = value.toString().split(",")[0].split(" ")[1]; // Extract program ID
                         int pid = Integer.parseInt(pidStr);
-                        Program process = paging.findProgramByPID(pid);
-                        if (process != null) {
-                            c.setBackground(process.getColor());
+                        Program program = paging.findProgramByPID(pid);
+                        if (program != null) {
+                            c.setBackground(program.getColor()); // Set the background color to the program's color
                         } else {
-                            c.setBackground(Color.WHITE);
+                            c.setBackground(Color.WHITE); // Default color if program not found
                         }
                     } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
                         c.setBackground(Color.WHITE); // Fallback in case of parsing error
                     }
+                } else if (value.toString().contains("@")) { // Check if the value is a memory address
+                    c.setBackground(getTableHeader().getBackground()); // Set to default header color
                 } else {
-                    c.setBackground(Color.WHITE);
+                    c.setBackground(Color.WHITE); // Default color for other cells
                 }
                 return c;
             }
         };
 
-        table.setFillsViewportHeight(true);
-        table.setShowGrid(true);
-        table.setGridColor(Color.GRAY);
+        // Set table properties
+        memoryTable.setFillsViewportHeight(true);
+        memoryTable.setShowGrid(true);
+        memoryTable.setGridColor(Color.GRAY);
 
+        // Set row header (frame index)
         String[] rowHeaders = new String[data.length];
-        rowHeader = new JList<>(rowHeaders); // Make it an instance variable
-        rowHeader.setFixedCellWidth(50);
-        rowHeader.setFixedCellHeight(table.getRowHeight());
-        rowHeader.setCellRenderer(new RowHeaderRenderer(table));
+        memoryRowHeader = new JList<>(rowHeaders);
+        memoryRowHeader.setFixedCellWidth(70);
+        memoryRowHeader.setFixedCellHeight(memoryTable.getRowHeight());
+        memoryRowHeader.setCellRenderer(new RowHeaderRenderer(memoryTable));
 
-        JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.setRowHeaderView(rowHeader);
+        // Add a scroll pane to the table
+        JScrollPane scrollPane = new JScrollPane(memoryTable);
+        scrollPane.setRowHeaderView(memoryRowHeader);
 
         tablePanel.add(scrollPane, BorderLayout.CENTER);
 
         return tablePanel;
     }
 
-    private void updateTableData(int memorySize, int frameSize, int osSize) {
-        // Initialize the table model with the correct number of rows
-        tableModel.setDataVector(new Object[memorySize][1], columnNames);
-        // Now initialize the OS process
+
+    // Initialize memory and pages table with the given memory size, frame size, and OS size
+    private void initializeMemory(int memorySize, int frameSize, int osSize) {
+        // Initialize memory table model with the correct number of rows
+        memoryTableModel.setDataVector(new Object[memorySize][1], memoryColumnNames);
+        
+        // Initialize memory, add OS program, and update tables
         paging.initializeMemory(memorySize, frameSize, osSize);
+        updateMemoryRowHeaders(memorySize);
         updateMemoryTable();
-        updatePagesTable(); // Update the table
-        // Update the row headers based on the new memory size
-        updateRowHeaders(memorySize);
+        updatePagesTable();
+
+        // Set width for memory address column, resize content column accordingly
+        memoryTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        memoryTable.getColumnModel().getColumn(0).setPreferredWidth(50);
+        memoryTable.getColumnModel().getColumn(1).setPreferredWidth(179);
     }
 
-    private void updateRowHeaders(int memorySize) {
+
+    // Update memory table row headers (frame index) with the current memory size
+    private void updateMemoryRowHeaders(int memorySize) {
         String[] newHeaders = new String[memorySize];
         for (int i = 0; i < memorySize; i++) {
-            newHeaders[i] = "@" + i;
+            newHeaders[i] = "Trang " + i / paging.getFrameSize();
+            memoryTableModel.setValueAt("@" + i, i, 0);
         }
-        rowHeader.setListData(newHeaders);
+        memoryRowHeader.setListData(newHeaders);
     }
 
+
+    // Update the memory table with the current state of the paging
+    private void updateMemoryTable() {
+        List<String> memory = paging.getMemory();
+        for (int i = 0; i < memory.size(); i++) {
+            memoryTableModel.setValueAt(memory.get(i), i, 1); // Update the content column (2nd column)
+        }
+    }
+
+
+    // Create the settings and add program panel
     private JPanel createSettingsAndAddProgramPanel() {
-        JPanel settingsAndAddProcessPanel = new JPanel();
-        settingsAndAddProcessPanel.setLayout(new BoxLayout(settingsAndAddProcessPanel, BoxLayout.Y_AXIS));
+        JPanel settingsAndAddProgramPanel = new JPanel();
+        settingsAndAddProgramPanel.setLayout(new BoxLayout(settingsAndAddProgramPanel, BoxLayout.Y_AXIS)); // Vertical layout
 
-        // Add the settings panel
+        // Add settings panel
         JPanel settingsPanel = createSettingsPanel();
-        settingsAndAddProcessPanel.add(settingsPanel);
+        settingsAndAddProgramPanel.add(settingsPanel);
 
-        // Add the add process panel
-        JPanel addProcessPanel = createAddProgramPanel();
-        settingsAndAddProcessPanel.add(addProcessPanel);
+        // Add add program panel
+        JPanel addProgramPanel = createAddProgramPanel();
+        settingsAndAddProgramPanel.add(addProgramPanel);
 
-        return settingsAndAddProcessPanel;
+        return settingsAndAddProgramPanel;
     }
 
+
+    // Create the settings panel where user can set memory size, frame size, and OS size
     private JPanel createSettingsPanel() {
+        // Create settings panel with a border titled "Cài đặt bộ nhớ"
         JPanel settingsPanel = new JPanel();
         settingsPanel.setBorder(new TitledBorder("Cài đặt bộ nhớ"));
         settingsPanel.setLayout(new GridBagLayout());
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(4, 4, 4, 4); // Padding
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.gridx = 0; // Column 0
-        gbc.gridy = 0; // Row 0
-        gbc.weightx = 0; // No extra space distribution
+        gbc.anchor = GridBagConstraints.WEST; // Left align
 
         // Memory size label and spinner
         JLabel memorySizeLabel = new JLabel("Kích thước bộ nhớ:");
@@ -177,16 +206,11 @@ public class PagingGUI extends JPanel {
         // Frame size label and spinner
         gbc.gridx = 0; // Reset to Column 0 for next component
         gbc.gridy = 1; // Next row
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.weightx = 0; // Reset extra space distribution
-
         JLabel frameSizeLabel = new JLabel("Kích thước khung trang:");
         JSpinner frameSizeSpinner = new JSpinner(new SpinnerNumberModel(4, 1, 1024, 1));
         settingsPanel.add(frameSizeLabel, gbc);
 
         gbc.gridx = 1; // Column 1 for spinner
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1; // Extra space distributed to spinner
         settingsPanel.add(frameSizeSpinner, gbc);
 
         // OS size label and spinner
@@ -216,68 +240,65 @@ public class PagingGUI extends JPanel {
             int memorySize = (Integer) memorySizeSpinner.getValue();
             int frameSize = (Integer) frameSizeSpinner.getValue();
             int osSize = (Integer) osSizeSpinner.getValue();
-            updateTableData(memorySize, frameSize, osSize);
-            addButton.setEnabled(true);
+            initializeMemory(memorySize, frameSize, osSize);
+            addButton.setEnabled(true); // Enable the add program button after initialization
         });
         settingsPanel.add(confirmButton, gbc);
 
         return settingsPanel;
     }
 
+
+    // Create the add program panel where user can input program details
     private JPanel createAddProgramPanel() {
-        JPanel addProcessPanel = new JPanel(new GridBagLayout());
-        addProcessPanel.setBorder(new TitledBorder("Nạp chương trình"));
+        // Create add program panel with a border titled "Nạp chương trình"
+        JPanel addProgramPanel = new JPanel(new GridBagLayout());
+        addProgramPanel.setBorder(new TitledBorder("Nạp chương trình"));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(4, 4, 4, 4); // Add some padding
-        gbc.anchor = GridBagConstraints.WEST;
+        gbc.insets = new Insets(4, 4, 4, 4); // Padding
+        gbc.anchor = GridBagConstraints.WEST; // Left align
 
         // Name label and field
         JLabel nameLabel = new JLabel("Tên:");
         JTextField nameField = new JTextField(20);
         gbc.gridx = 0;
         gbc.gridy = 0;
-        addProcessPanel.add(nameLabel, gbc);
+        addProgramPanel.add(nameLabel, gbc);
 
         gbc.gridx = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1;
-        addProcessPanel.add(nameField, gbc);
+        addProgramPanel.add(nameField, gbc);
 
         // Size label and spinner
         JLabel sizeLabel = new JLabel("Kích thước:");
         JSpinner sizeSpinner = new JSpinner(new SpinnerNumberModel(1, 1, 64, 1));
         gbc.gridx = 0;
         gbc.gridy = 1;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.weightx = 0;
-        addProcessPanel.add(sizeLabel, gbc);
+        addProgramPanel.add(sizeLabel, gbc);
 
         gbc.gridx = 1;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1;
-        addProcessPanel.add(sizeSpinner, gbc);
+        addProgramPanel.add(sizeSpinner, gbc);
 
         // Color label and button
         JLabel colorLabel = new JLabel("Màu:");
         JButton colorButton = new JButton();
-        Random rand = new Random(); // Random object to generate random numbers
+        Random rand = new Random();
         // Set default color
-        Color defaultColor = new Color(255,130,0);
-        colorButton.setBackground(defaultColor);
+        colorButton.setBackground(new Color(255, 192, 127));
         colorButton.setOpaque(true);
-        colorButton.setBorderPainted(false); // Needed on some look and feels
+        colorButton.setBorderPainted(false);
 
         gbc.gridx = 0;
         gbc.gridy = 2;
-        gbc.gridwidth = 1; // Take up only one column for the label
-        addProcessPanel.add(colorLabel, gbc);
+        addProgramPanel.add(colorLabel, gbc);
 
         gbc.gridx = 1;
-        gbc.gridwidth = 1; // Take up only one column for the button
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        addProcessPanel.add(colorButton, gbc);
+        addProgramPanel.add(colorButton, gbc);
 
+        // Open color chooser dialog when color button is clicked
         colorButton.addActionListener(e -> {
             Color chosenColor = JColorChooser.showDialog(null, "Chọn màu", colorButton.getBackground());
             if (chosenColor != null) {
@@ -285,6 +306,7 @@ public class PagingGUI extends JPanel {
             }
         });
 
+        // Add button to add program
         addButton = new JButton("Nạp chương trình");
         addButton.setEnabled(false);
         gbc.gridx = 0;
@@ -292,16 +314,16 @@ public class PagingGUI extends JPanel {
         gbc.gridwidth = 2; // Span across two columns
         gbc.fill = GridBagConstraints.NONE;
         gbc.anchor = GridBagConstraints.CENTER;
-        addProcessPanel.add(addButton, gbc);
+        addProgramPanel.add(addButton, gbc);
 
-        // Action listener for create button
+        // Add a new program or show error message when button is clicked
         addButton.addActionListener(e -> {
-            int processSize = (Integer) sizeSpinner.getValue();
-            String processName = nameField.getText().trim();
-            Color processColor = colorButton.getBackground();
+            String programName = nameField.getText().trim();
+            int programSize = (Integer) sizeSpinner.getValue();
+            Color programColor = colorButton.getBackground();
 
             try {
-                paging.addProgram(processName, processSize, processColor);
+                paging.addProgram(programName, programSize, programColor);
             } catch (IllegalArgumentException ex) {
                 JOptionPane.showMessageDialog(this, ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
@@ -309,23 +331,22 @@ public class PagingGUI extends JPanel {
             updateMemoryTable();
             updatePagesTable();
 
-            Color randomColor = new Color(rand.nextInt(256), rand.nextInt(256), rand.nextInt(256));
-            colorButton.setBackground(randomColor);
+            // Random color for the color button
+            float hue = rand.nextFloat();
+            float saturation = 0.3f + rand.nextFloat() * 0.3f;
+            float brightness = 0.95f + rand.nextFloat() * 0.05f;
+            colorButton.setBackground(Color.getHSBColor(hue, saturation, brightness));
         });
 
-        return addProcessPanel;
+        return addProgramPanel;
     }
 
-    private void updateMemoryTable() {
-        List<String> memory = paging.getMemory();
-        for (int i = 0; i < memory.size(); i++) {
-            tableModel.setValueAt(memory.get(i), i, 0);
-        }
-    }
 
+    // Create the pages table panel
     private JPanel createPagesTablePanel() {
-        JPanel processesPanel = new JPanel(new GridBagLayout()); // Use GridBagLayout
-        processesPanel.setBorder(new TitledBorder("Bảng quản lý trang"));
+        // Create pages table panel with a border titled "Bảng quản lý trang"
+        JPanel pagesTablePanel = new JPanel(new GridBagLayout());
+        pagesTablePanel.setBorder(new TitledBorder("Bảng quản lý trang"));
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridwidth = GridBagConstraints.REMAINDER;
@@ -333,28 +354,26 @@ public class PagingGUI extends JPanel {
         gbc.weightx = 1;
         gbc.weighty = 3;
 
-        // Table for active processes
-        String[] activeProcessColumnNames = {"Số hiệu CT", "Tên chương trình", "Số hiệu trang", "Dấu hiệu (M)", "Địa chỉ (A)", "Màu"};
-        activePagesTable = new JTable(new DefaultTableModel(new Object[0][6], activeProcessColumnNames) {
+        // Table for programs in memory and their pages
+        String[] pagesColumnNames = {"Số hiệu CT", "Tên chương trình", "Số hiệu trang", "Dấu hiệu (M)", "Địa chỉ (A)", "Màu"};
+        pagesTable = new JTable(new DefaultTableModel(new Object[0][6], pagesColumnNames) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                // Make table non-editable
                 return false;
             }
         });
         
-        // Apply the custom renderer to specific columns
-        activePagesTable.getColumnModel().getColumn(0).setCellRenderer(new MergedCellRenderer()); // Program ID
-        activePagesTable.getColumnModel().getColumn(1).setCellRenderer(new MergedCellRenderer()); // Program Name
+        // Merge cells with the same value in the first two columns
+        pagesTable.getColumnModel().getColumn(0).setCellRenderer(new MergedCellRenderer()); // Program ID
+        pagesTable.getColumnModel().getColumn(1).setCellRenderer(new MergedCellRenderer()); // Program Name
+        // Display color in the color column
+        pagesTable.getColumnModel().getColumn(5).setCellRenderer(new ColorRenderer());
 
-        JScrollPane activeProcessesScrollPane = new JScrollPane(activePagesTable);
+        // Add scroll pane
+        JScrollPane pagesScrollPane = new JScrollPane(pagesTable);
+        pagesTablePanel.add(pagesScrollPane, gbc);
 
-        TableColumn colorColumn = activePagesTable.getColumnModel().getColumn(5);
-        colorColumn.setCellRenderer(new ColorRenderer());
-
-        // Add the table with constraints
-        processesPanel.add(activeProcessesScrollPane, gbc);
-
+        // Back to menu button
         JButton back = new JButton("Trở về Menu");
         back.addActionListener(e -> {
             Menu menu = new Menu(window);
@@ -362,20 +381,21 @@ public class PagingGUI extends JPanel {
             window.add(menu);
         });
 
-        // Adjust constraints for the back button
-        gbc.weighty = 1; // Less weight compared to the table
+        gbc.weighty = 1;
         gbc.fill = GridBagConstraints.NONE;
         gbc.anchor = GridBagConstraints.SOUTHEAST;
-        // Add the back button with constraints
-        processesPanel.add(back, gbc);
+        
+        pagesTablePanel.add(back, gbc);
 
-        return processesPanel;
+        return pagesTablePanel;
     }
 
-    private void updatePagesTable() {
-        DefaultTableModel model = (DefaultTableModel) activePagesTable.getModel();
-        model.setRowCount(0); // Clear existing rows
 
+    // Update the pages table with the current state of paging
+    private void updatePagesTable() {
+        DefaultTableModel model = (DefaultTableModel) pagesTable.getModel();
+        model.setRowCount(0); // Clear existing rows
+        // Add a new row for each page
         for (Program program : paging.getPrograms()) {
             for (Page page : program.getPages()) {
                 Object[] row = new Object[]{
@@ -391,13 +411,15 @@ public class PagingGUI extends JPanel {
         }
     }
 
+
+    // Display color in color column
     static class ColorRenderer extends DefaultTableCellRenderer {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
             if (value instanceof Color color) {
                 setBackground(color);
-                setForeground(color); // You might want to adjust text color for visibility
+                setForeground(color);
             } else {
                 setBackground(Color.WHITE);
                 setForeground(Color.BLACK);
@@ -406,6 +428,8 @@ public class PagingGUI extends JPanel {
         }
     }
 
+
+    // Merge cells with the same value
     class MergedCellRenderer extends DefaultTableCellRenderer {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
@@ -419,22 +443,28 @@ public class PagingGUI extends JPanel {
         }
     }
 
+
+    // Set background color for row header
     private static class RowHeaderRenderer extends JLabel implements ListCellRenderer<String> {
         RowHeaderRenderer(JTable table) {
             JTableHeader header = table.getTableHeader();
             setOpaque(true);
             setBorder(UIManager.getBorder("TableHeader.cellBorder"));
-            setHorizontalAlignment(LEFT); // Align to the left
-            setForeground(header.getForeground());
             setBackground(header.getBackground());
             setFont(header.getFont());
         }
-
+        // Merge cells with the same value
         @Override
         public Component getListCellRendererComponent(JList<? extends String> list, String value, int index,
                                                         boolean isSelected, boolean cellHasFocus) {
-            setText((value != null) ? value : "");
+            // Check if the current frame index matches the previous row's frame index
+            if (index > 0 && value.equals(list.getModel().getElementAt(index - 1))) {
+                setText(""); // Hide the text for subsequent rows with the same frame index
+            } else {
+                setText(value); // Display the frame index
+            }
             return this;
         }
     }
+
 }

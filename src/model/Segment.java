@@ -3,12 +3,12 @@ package model;
 import java.awt.Color;
 
 public class Segment {
-    private int SID;
-    private String name;
-    private int mark;
-    private int address;
-    private int length;
-    private Color color;
+    private int SID; // ID of the segment
+    private String name; // Name of the segment
+    private int mark; // Mark to indicate if the segment is in memory
+    private int address; // Base address of the segment in memory
+    private int length; // Length of the segment
+    private Color color; // Color of the segment for visualization
 
     public Segment(int SID, String name, int address, int length, Color color) {
         this.SID = SID;

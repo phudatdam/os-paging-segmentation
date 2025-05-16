@@ -6,13 +6,15 @@ import java.util.List;
 import java.util.Random;
 
 public class Segmentation {
-    private final List<Segment> segments;
-    private final List<String> memory;
-    private int nextSID;
+    private final List<Segment> segments; // List of segments in memory
+    private final List<String> memory; // Memory represented as a list of strings
+    private final List<Integer> freeAddresses; // List of free addresses in memory
+    private int nextSID; // Next segment ID to be assigned
 
     public Segmentation() {
         this.segments = new ArrayList<>();
         this.memory = new ArrayList<>();
+        this.freeAddresses = new ArrayList<>();
         this.nextSID = 0;
     }
 
@@ -24,7 +26,38 @@ public class Segmentation {
         return memory;
     }
 
-    public void reset(int memorySize) {
+
+    // Add a segment to memory
+    public void addSegment(String name, int size, Color color) {
+        // Validate input
+        if (name == null || name.isEmpty()) {
+            throw new IllegalArgumentException("Cần thêm tên đoạn.");
+        }
+        if (isSegmentNameExists(name)) {
+            throw new IllegalArgumentException("Đoạn đã tồn tại trong bộ nhớ.");
+        }
+
+        // Generate a random start address for the segment
+        int startAddress = findRandomStartAddress(size);
+        if (startAddress == -1) {
+            throw new IllegalArgumentException("Không đủ vùng trống tự do để nạp đoạn này.");
+        }
+
+        // Create segment and allocate memory
+        Segment newSegment = new Segment(nextSID++, name, startAddress, size, color);
+        for (int i = 0; i < size; i++) {
+            memory.set(startAddress + i, "Đoạn " + newSegment.getSID() + " (" + name + ") - " + i);
+        }
+
+        // Add segment to segments list and mark it as used
+        segments.add(newSegment);
+        newSegment.setMark(1);
+    }
+
+
+    // Initialize memory and OS segment
+    public void initializeMemory(int memorySize, int osSize) {
+        // Reset memory
         segments.clear();
         memory.clear();
         nextSID = 0;
@@ -32,37 +65,22 @@ public class Segmentation {
         // Initialize memory as free
         for (int i = 0; i < memorySize; i++) {
             memory.add("Tự do");
+            freeAddresses.add(i);
         }
-    }
 
-    public void addSegment(String name, int size, Color color) {
-        if (name == null || name.isEmpty()) {
-            throw new IllegalArgumentException("Cần thêm tên đoạn.");
-        }
-        if (isSegmentNameExists(name)) {
-            throw new IllegalArgumentException("Đoạn đã tồn tại.");
-        }
-        int address = findRandomStartAddress(size);
-        if (address == -1) {
-            throw new IllegalArgumentException("Không đủ vùng trống tự do để nạp đoạn này.");
-        }
-        Segment newSegment = new Segment(nextSID++, name, address, size, color);
-        segments.add(newSegment);
-        newSegment.setMark(1);
-        for (int i = 0; i < size; i++) {
-            memory.set(address + i, "SID " + newSegment.getSID());
-        }
-    }
-
-    public void initializeOSSegments(int osSize) {
-        Segment osSegment = new Segment(-1, "OS", 0, osSize, Color.LIGHT_GRAY);
-        segments.add(osSegment);
-        osSegment.setMark(1);
+        // Create OS segment and allocate memory
+        Segment osSegment = new Segment(-1, "OS", 0, osSize, Color.LIGHT_GRAY); // ID = -1 so that user's segment ID starts from 0
         for (int i = 0; i < osSize; i++) {
             memory.set(i, "OS");
         }
+
+        // Add OS segment to segments list and mark it as used
+        segments.add(osSegment);
+        osSegment.setMark(1);
     }
 
+
+    // Find a segment by its ID
     public Segment findSegmentBySID(int sid) {
         for (Segment segment : segments) {
             if (segment.getSID() == sid) {
@@ -72,6 +90,8 @@ public class Segmentation {
         return null;
     }
 
+
+    // Check if a segment name already exists
     private boolean isSegmentNameExists(String name) {
         for (Segment segment : segments) {
             if (segment.getName().equalsIgnoreCase(name)) {
@@ -81,37 +101,32 @@ public class Segmentation {
         return false;
     }
 
+
+    // Generate a random start address for the segment
     private int findRandomStartAddress(int segmentSize) {
-        List<Integer> freeAddresses = getFreeMemoryAddresses();
         Random random = new Random();
         while (!freeAddresses.isEmpty()) {
             int randomIndex = random.nextInt(freeAddresses.size());
-            int startAddress = freeAddresses.get(randomIndex);
+            int startAddress = freeAddresses.get(randomIndex); // Get a random free address
+            freeAddresses.remove(randomIndex); // Remove the address from free addresses
             if (isEnoughContiguousSpace(startAddress, segmentSize)) {
                 return startAddress;
-            } else {
-                freeAddresses.remove(randomIndex);
             }
         }
-        return -1;
+        return -1; // Not enough contiguous space for the segment
     }
 
+
+    // Check if there is enough contiguous space in memory for the segment from the start address
     private boolean isEnoughContiguousSpace(int startAddress, int segmentSize) {
+        if (startAddress + segmentSize > memory.size()) {
+            return false;
+        }
         for (int i = 0; i < segmentSize; i++) {
-            if (startAddress + i >= memory.size() || !"Tự do".equals(memory.get(startAddress + i))) {
+            if (!memory.get(startAddress + i).equals("Tự do")) {
                 return false;
             }
         }
-        return true;
-    }
-
-    private List<Integer> getFreeMemoryAddresses() {
-        List<Integer> freeAddresses = new ArrayList<>();
-        for (int i = 0; i < memory.size(); i++) {
-            if ("Tự do".equals(memory.get(i))) {
-                freeAddresses.add(i);
-            }
-        }
-        return freeAddresses;
+        return true; // If all addresses from startAddress to startAddress + segmentSize are free
     }
 }

@@ -1,9 +1,9 @@
 package model;
 
 public class Page {
-    private int pageID;
-    private int mark;
-    private int address;
+    private int pageID; // ID of the page
+    private int mark; // Mark to indicate if the page is in memory
+    private int address; // Address of the frame that the page is mapped to
 
     public Page(int pageID, int address) {
         this.pageID = pageID;
