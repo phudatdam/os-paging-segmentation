@@ -22,6 +22,7 @@ public class PagingGUI extends JPanel {
     private final String[] memoryColumnNames = {"", ""};
     private JList<String> memoryRowHeader;
     private JButton addButton;
+    private JButton accessButton;
     private JTable pagesTable;
 
 
@@ -55,8 +56,8 @@ public class PagingGUI extends JPanel {
 
         // Add pages table panel
         gbc.weightx = 0.6;
-        JPanel pagesTablePanel = createPagesTablePanel();
-        add(pagesTablePanel, gbc);
+        JPanel pagesTableAndAccessMemoryPanel = createPagesTableAndAccessMemoryPanel();
+        add(pagesTableAndAccessMemoryPanel, gbc);
     }
 
 
@@ -90,6 +91,9 @@ public class PagingGUI extends JPanel {
                         Program program = paging.findProgramByPID(pid);
                         if (program != null) {
                             c.setBackground(program.getColor()); // Set the background color to the program's color
+                            if (isRowSelected(row)) {
+                                c.setBackground(c.getBackground().darker()); // Make selected row darker
+                            }
                         } else {
                             c.setBackground(Color.WHITE); // Default color if program not found
                         }
@@ -113,7 +117,7 @@ public class PagingGUI extends JPanel {
         // Set row header (frame index)
         String[] rowHeaders = new String[data.length];
         memoryRowHeader = new JList<>(rowHeaders);
-        memoryRowHeader.setFixedCellWidth(70);
+        memoryRowHeader.setFixedCellWidth(40);
         memoryRowHeader.setFixedCellHeight(memoryTable.getRowHeight());
         memoryRowHeader.setCellRenderer(new RowHeaderRenderer(memoryTable));
 
@@ -149,7 +153,7 @@ public class PagingGUI extends JPanel {
     private void updateMemoryRowHeaders(int memorySize) {
         String[] newHeaders = new String[memorySize];
         for (int i = 0; i < memorySize; i++) {
-            newHeaders[i] = "Trang " + i / paging.getFrameSize();
+            newHeaders[i] = "F" + i / paging.getFrameSize();
             memoryTableModel.setValueAt("@" + i, i, 0);
         }
         memoryRowHeader.setListData(newHeaders);
@@ -336,9 +340,28 @@ public class PagingGUI extends JPanel {
             float saturation = 0.3f + rand.nextFloat() * 0.3f;
             float brightness = 0.95f + rand.nextFloat() * 0.05f;
             colorButton.setBackground(Color.getHSBColor(hue, saturation, brightness));
+
+            accessButton.setEnabled(true); // Enable the access memory button after adding a segment
         });
 
         return addProgramPanel;
+    }
+
+
+    // Create the pages table and access memory panel
+    private JPanel createPagesTableAndAccessMemoryPanel() {
+        JPanel pagesTableAndAccessMemoryPanel = new JPanel();
+        pagesTableAndAccessMemoryPanel.setLayout(new BoxLayout(pagesTableAndAccessMemoryPanel, BoxLayout.Y_AXIS)); // Vertical layout
+
+        // Add segments table panel
+        JPanel pagesTablePanel = createPagesTablePanel();
+        pagesTableAndAccessMemoryPanel.add(pagesTablePanel);
+
+        // Add access memory panel
+        JPanel accessMemoryPanel = createAccessMemoryPanel();
+        pagesTableAndAccessMemoryPanel.add(accessMemoryPanel);
+
+        return pagesTableAndAccessMemoryPanel;
     }
 
 
@@ -349,10 +372,9 @@ public class PagingGUI extends JPanel {
         pagesTablePanel.setBorder(new TitledBorder("Bảng quản lý trang"));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridwidth = GridBagConstraints.REMAINDER;
         gbc.fill = GridBagConstraints.BOTH;
         gbc.weightx = 1;
-        gbc.weighty = 3;
+        gbc.weighty = 1;
 
         // Table for programs in memory and their pages
         String[] pagesColumnNames = {"Số hiệu CT", "Tên chương trình", "Số hiệu trang", "Dấu hiệu (M)", "Địa chỉ (A)", "Màu"};
@@ -372,20 +394,6 @@ public class PagingGUI extends JPanel {
         // Add scroll pane
         JScrollPane pagesScrollPane = new JScrollPane(pagesTable);
         pagesTablePanel.add(pagesScrollPane, gbc);
-
-        // Back to menu button
-        JButton back = new JButton("Trở về Menu");
-        back.addActionListener(e -> {
-            Menu menu = new Menu(window);
-            window.remove(this);
-            window.add(menu);
-        });
-
-        gbc.weighty = 1;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.SOUTHEAST;
-        
-        pagesTablePanel.add(back, gbc);
 
         return pagesTablePanel;
     }
@@ -409,6 +417,100 @@ public class PagingGUI extends JPanel {
                 model.addRow(row);
             }
         }
+    }
+
+
+    // Create the access memory panel where user can input program ID and offset and receive physical address
+    private JPanel createAccessMemoryPanel() {
+        // Create access memory panel with a border titled "Truy nhập bộ nhớ"
+        JPanel accessMemoryPanel = new JPanel(new GridBagLayout());
+        accessMemoryPanel.setBorder(BorderFactory.createCompoundBorder(
+            new TitledBorder("Truy nhập bộ nhớ"),
+            new EmptyBorder(20, 0, 0, 0) // Add a 20px gap at the top
+        ));
+    
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(4, 4, 4, 4);
+        gbc.anchor = GridBagConstraints.WEST; // Left align
+    
+        // Program ID label and input
+        JLabel programIDLabel = new JLabel("Số hiệu chương trình:");
+        JTextField programIDField = new JTextField(20);
+        accessMemoryPanel.add(programIDLabel, gbc);
+    
+        gbc.gridx = 1;
+        gbc.weightx = 0.1; // Extra space distributed to input
+        accessMemoryPanel.add(programIDField, gbc);
+    
+        // Offset label and input
+        JLabel offsetLabel = new JLabel("Độ lệch trong chương trình:");
+        JTextField offsetField = new JTextField(20);
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        accessMemoryPanel.add(offsetLabel, gbc);
+    
+        gbc.gridx = 1;
+        accessMemoryPanel.add(offsetField, gbc);
+    
+        // Button to translate logical address to physical address
+        accessButton = new JButton("Truy nhập bộ nhớ");
+        accessButton.setEnabled(false); // Initially disabled
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.gridwidth = 2;
+        gbc.anchor = GridBagConstraints.CENTER;
+        accessMemoryPanel.add(accessButton, gbc);
+    
+        // Label to display the physical address
+        JLabel resultLabel = new JLabel("Địa chỉ vật lý: ");
+        gbc.gridy = 3;
+        accessMemoryPanel.add(resultLabel, gbc);
+    
+        // Display the physical address and highlight the corresponding row in the memory table when button is clicked
+        accessButton.addActionListener(e -> {
+            try {
+                int segmentID = Integer.parseInt(programIDField.getText().trim());
+                int offset = Integer.parseInt(offsetField.getText().trim());
+                int physicalAddress = paging.translateAddress(segmentID, offset);
+    
+                // Display the physical address
+                resultLabel.setText("Địa chỉ vật lý: " + physicalAddress);
+    
+                // Highlight and scroll to the corresponding row in the memory table
+                memoryTable.setRowSelectionInterval(physicalAddress, physicalAddress);
+                memoryTable.scrollRectToVisible(memoryTable.getCellRect(physicalAddress, 0, true));
+    
+                // Highlight and scroll to the corresponding row in the segments table
+                for (int i = 1; i < pagesTable.getRowCount(); i++) {
+                    if ((int) pagesTable.getValueAt(i, 0) == segmentID) {
+                        pagesTable.setRowSelectionInterval(i, i);
+                        pagesTable.scrollRectToVisible(pagesTable.getCellRect(i, 0, true));
+                        break;
+                    }
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Vui lòng nhập số hợp lệ.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            } catch (IllegalArgumentException ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        // Back to menu button
+        JButton back = new JButton("Trở về Menu");
+        back.addActionListener(e -> {
+            Menu menu = new Menu(window);
+            window.remove(this);
+            window.add(menu);
+        });
+        gbc.gridx = 2;
+        gbc.gridy = 4;
+        gbc.anchor = GridBagConstraints.SOUTHEAST;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.NONE;
+        
+        accessMemoryPanel.add(back, gbc);
+    
+        return accessMemoryPanel;
     }
 
 

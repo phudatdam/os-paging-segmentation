@@ -8,13 +8,11 @@ import java.util.Random;
 public class Segmentation {
     private final List<Segment> segments; // List of segments in memory
     private final List<String> memory; // Memory represented as a list of strings
-    private final List<Integer> freeAddresses; // List of free addresses in memory
     private int nextSID; // Next segment ID to be assigned
 
     public Segmentation() {
         this.segments = new ArrayList<>();
         this.memory = new ArrayList<>();
-        this.freeAddresses = new ArrayList<>();
         this.nextSID = 0;
     }
 
@@ -65,7 +63,6 @@ public class Segmentation {
         // Initialize memory as free
         for (int i = 0; i < memorySize; i++) {
             memory.add("Tự do");
-            freeAddresses.add(i);
         }
 
         // Create OS segment and allocate memory
@@ -104,13 +101,23 @@ public class Segmentation {
 
     // Generate a random start address for the segment
     private int findRandomStartAddress(int segmentSize) {
+        // Get all free addresses in memory
+        List<Integer> freeAddresses = new ArrayList<>();
+        for (int i = 0; i < memory.size(); i++) {
+            if (memory.get(i).equals("Tự do")) {
+                freeAddresses.add(i);
+            }
+        }
+
+        // Randomly select a free address and check if it has enough contiguous space
         Random random = new Random();
         while (!freeAddresses.isEmpty()) {
             int randomIndex = random.nextInt(freeAddresses.size());
-            int startAddress = freeAddresses.get(randomIndex); // Get a random free address
-            freeAddresses.remove(randomIndex); // Remove the address from free addresses
+            int startAddress = freeAddresses.get(randomIndex);
             if (isEnoughContiguousSpace(startAddress, segmentSize)) {
                 return startAddress;
+            } else {
+                freeAddresses.remove(randomIndex);
             }
         }
         return -1; // Not enough contiguous space for the segment
@@ -128,5 +135,18 @@ public class Segmentation {
             }
         }
         return true; // If all addresses from startAddress to startAddress + segmentSize are free
+    }
+
+
+    // Translate a logical address to a physical address
+    public int translateAddress(int segmentID, int offset) {
+        Segment segment = findSegmentBySID(segmentID);
+        if (segment == null || segment.getMark() == 0) {
+            throw new IllegalArgumentException("Đoạn không có trong bộ nhớ.");
+        }
+        if (offset < 0 || offset >= segment.getLength()) {
+            throw new IllegalArgumentException("Offset vượt quá kích thước đoạn.");
+        }
+        return segment.getAddress() + offset;
     }
 }

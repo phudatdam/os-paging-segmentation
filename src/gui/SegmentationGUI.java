@@ -17,9 +17,11 @@ public class SegmentationGUI extends JPanel {
     private final JFrame window; // Parent window
     private final Segmentation segmentation; // Segmentation model
     private DefaultTableModel memoryTableModel;
+    private JTable memoryTable;
     private final String[] memoryColumnNames = {""};
     private JList<String> memoryRowHeader;
     private JButton addButton;
+    private JButton accessButton;
     private JTable segmentsTable;
 
 
@@ -53,8 +55,8 @@ public class SegmentationGUI extends JPanel {
 
         // Add segments table panel
         gbc.weightx = 0.6;
-        JPanel segmentsPanel = createSegmentsTablePanel();
-        add(segmentsPanel, gbc);
+        JPanel segmentsTableAndAccessMemoryPanel = createSegmentsTableAndAccessMemoryPanel();
+        add(segmentsTableAndAccessMemoryPanel, gbc);
     }
 
 
@@ -73,7 +75,7 @@ public class SegmentationGUI extends JPanel {
         };
 
         // Set the table and cell color renderer
-        JTable memoryTable = new JTable(memoryTableModel) {
+        memoryTable = new JTable(memoryTableModel) {
             @Override
             public Component prepareRenderer(TableCellRenderer renderer, int row, int column) {
                 Component c = super.prepareRenderer(renderer, row, column);
@@ -88,6 +90,9 @@ public class SegmentationGUI extends JPanel {
                         Segment segment = segmentation.findSegmentBySID(sid);
                         if (segment != null) {
                             c.setBackground(segment.getColor()); // Set the background color to the segment's color
+                            if (isRowSelected(row)) {
+                                c.setBackground(c.getBackground().darker()); // Make selected row darker
+                            }
                         } else {
                             c.setBackground(Color.WHITE); // Default color if program not found
                         }
@@ -236,8 +241,6 @@ public class SegmentationGUI extends JPanel {
         // Name label and field
         JLabel nameLabel = new JLabel("Tên:");
         JTextField nameField = new JTextField(20);
-        gbc.gridx = 0;
-        gbc.gridy = 0;
         addSegmentPanel.add(nameLabel, gbc);
 
         gbc.gridx = 1;
@@ -310,9 +313,28 @@ public class SegmentationGUI extends JPanel {
             float saturation = 0.3f + rand.nextFloat() * 0.3f;
             float brightness = 0.95f + rand.nextFloat() * 0.05f;
             colorButton.setBackground(Color.getHSBColor(hue, saturation, brightness));
+
+            accessButton.setEnabled(true); // Enable the access memory button after adding a segment
         });
 
         return addSegmentPanel;
+    }
+
+
+    // Create the segments table and access memory panel
+    private JPanel createSegmentsTableAndAccessMemoryPanel() {
+        JPanel segmentsTableAndAccessMemoryPanel = new JPanel();
+        segmentsTableAndAccessMemoryPanel.setLayout(new BoxLayout(segmentsTableAndAccessMemoryPanel, BoxLayout.Y_AXIS)); // Vertical layout
+
+        // Add segments table panel
+        JPanel segmentsTablePanel = createSegmentsTablePanel();
+        segmentsTableAndAccessMemoryPanel.add(segmentsTablePanel);
+
+        // Add access memory panel
+        JPanel accessMemoryPanel = createAccessMemoryPanel();
+        segmentsTableAndAccessMemoryPanel.add(accessMemoryPanel);
+
+        return segmentsTableAndAccessMemoryPanel;
     }
 
 
@@ -323,10 +345,9 @@ public class SegmentationGUI extends JPanel {
         segmentsTablePanel.setBorder(new TitledBorder("Bảng quản lý đoạn"));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridwidth = GridBagConstraints.REMAINDER;
         gbc.fill = GridBagConstraints.BOTH;
         gbc.weightx = 1;
-        gbc.weighty = 3;
+        gbc.weighty = 1;
 
         // Table for segments in memory
         String[] segmentsColumnNames = {"Số hiệu đoạn", "Tên đoạn", "Dấu hiệu (M)", "Địa chỉ (A)", "Độ dài (L)", "Màu"};
@@ -343,20 +364,6 @@ public class SegmentationGUI extends JPanel {
         // Add scroll pane
         JScrollPane segmentsScrollPane = new JScrollPane(segmentsTable);
         segmentsTablePanel.add(segmentsScrollPane, gbc);
-
-        // Back to menu button
-        JButton back = new JButton("Trở về Menu");
-        back.addActionListener(e -> {
-            Menu menu = new Menu(window);
-            window.remove(this);
-            window.add(menu);
-        });
-
-        gbc.weighty = 1;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.SOUTHEAST;
-        
-        segmentsTablePanel.add(back, gbc);
 
         return segmentsTablePanel;
     }
@@ -378,6 +385,100 @@ public class SegmentationGUI extends JPanel {
             };
             model.addRow(row);
         }
+    }
+
+
+    // Create the access memory panel where user can input segment ID and offset and receive physical address
+    private JPanel createAccessMemoryPanel() {
+        // Create access memory panel with a border titled "Truy nhập bộ nhớ"
+        JPanel accessMemoryPanel = new JPanel(new GridBagLayout());
+        accessMemoryPanel.setBorder(BorderFactory.createCompoundBorder(
+            new TitledBorder("Truy nhập bộ nhớ"),
+            new EmptyBorder(20, 0, 0, 0) // Add a 20px gap at the top
+        ));
+    
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(4, 4, 4, 4);
+        gbc.anchor = GridBagConstraints.WEST; // Left align
+    
+        // Segment ID label and input
+        JLabel segmentIDLabel = new JLabel("Số hiệu đoạn:");
+        JTextField segmentIDField = new JTextField(20);
+        accessMemoryPanel.add(segmentIDLabel, gbc);
+    
+        gbc.gridx = 1;
+        gbc.weightx = 0.1; // Extra space distributed to input
+        accessMemoryPanel.add(segmentIDField, gbc);
+    
+        // Offset label and input
+        JLabel offsetLabel = new JLabel("Độ lệch trong đoạn:");
+        JTextField offsetField = new JTextField(20);
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        accessMemoryPanel.add(offsetLabel, gbc);
+    
+        gbc.gridx = 1;
+        accessMemoryPanel.add(offsetField, gbc);
+    
+        // Button to translate logical address to physical address
+        accessButton = new JButton("Truy nhập bộ nhớ");
+        accessButton.setEnabled(false); // Initially disabled
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.gridwidth = 2;
+        gbc.anchor = GridBagConstraints.CENTER;
+        accessMemoryPanel.add(accessButton, gbc);
+    
+        // Label to display the physical address
+        JLabel resultLabel = new JLabel("Địa chỉ vật lý: ");
+        gbc.gridy = 3;
+        accessMemoryPanel.add(resultLabel, gbc);
+    
+        // Display the physical address and highlight the corresponding row in the memory table when button is clicked
+        accessButton.addActionListener(e -> {
+            try {
+                int segmentID = Integer.parseInt(segmentIDField.getText().trim());
+                int offset = Integer.parseInt(offsetField.getText().trim());
+                int physicalAddress = segmentation.translateAddress(segmentID, offset);
+    
+                // Display the physical address
+                resultLabel.setText("Địa chỉ vật lý: " + physicalAddress);
+    
+                // Highlight and scroll to the corresponding row in the memory table
+                memoryTable.setRowSelectionInterval(physicalAddress, physicalAddress);
+                memoryTable.scrollRectToVisible(memoryTable.getCellRect(physicalAddress, 0, true));
+    
+                // Highlight and scroll to the corresponding row in the segments table
+                for (int i = 1; i < segmentsTable.getRowCount(); i++) {
+                    if ((int) segmentsTable.getValueAt(i, 0) == segmentID) {
+                        segmentsTable.setRowSelectionInterval(i, i);
+                        segmentsTable.scrollRectToVisible(segmentsTable.getCellRect(i, 0, true));
+                        break;
+                    }
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Vui lòng nhập số hợp lệ.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            } catch (IllegalArgumentException ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        // Back to menu button
+        JButton back = new JButton("Trở về Menu");
+        back.addActionListener(e -> {
+            Menu menu = new Menu(window);
+            window.remove(this);
+            window.add(menu);
+        });
+        gbc.gridx = 2;
+        gbc.gridy = 4;
+        gbc.anchor = GridBagConstraints.SOUTHEAST;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.NONE;
+        
+        accessMemoryPanel.add(back, gbc);
+    
+        return accessMemoryPanel;
     }
 
 

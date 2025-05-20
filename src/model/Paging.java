@@ -78,6 +78,7 @@ public class Paging {
         this.frameSize = frameSize;
         programs.clear();
         memory.clear();
+        freeFrames.clear();
         nextPID = 0;
 
         // Initialize memory as free
@@ -93,7 +94,7 @@ public class Paging {
         int totalFramesNeeded = (int) Math.ceil((double) osSize / frameSize);
 
         for (int pageIndex = 0; pageIndex < totalFramesNeeded; pageIndex++) {
-            freeFrames.remove(pageIndex); // Remove frame from free frames list
+            freeFrames.remove(0); // Remove frame from free frames list
             // Allocate memory for the page
             int pageSize = Math.min(frameSize, osSize - pageIndex * frameSize);
             for (int i = 0; i < pageSize; i++) {
@@ -128,5 +129,23 @@ public class Paging {
             }
         }
         return false;
+    }
+
+    // Translate a logical address to a physical address
+    public int translateAddress(int programID, int offset) {
+        Program program = findProgramByPID(programID);
+        if (program == null) {
+            throw new IllegalArgumentException("Chương trình không có trong bộ nhớ.");
+        }
+        int pageIndex = offset / frameSize;
+        int pageOffset = offset % frameSize;
+        if (pageIndex >= program.getPages().size()) {
+            throw new IllegalArgumentException("Offset vượt quá kích thước chương trình.");
+        }
+        Page page = program.getPages().get(pageIndex);
+        if (page.getMark() == 0) {
+            throw new IllegalArgumentException("Trang không có trong bộ nhớ.");
+        }
+        return page.getAddress() * frameSize + pageOffset;
     }
 }
