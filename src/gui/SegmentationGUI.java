@@ -533,7 +533,7 @@ public class SegmentationGUI extends JPanel {
                 segmentation.removeSegment(sid); // Gọi phương thức từ Segmentation.java
                 updateMemoryTable();
                 updateSegmentsTable();
-                deleteButton.setVisible(false);
+                deleteButton.setEnabled(false);
             }
         }
     }
