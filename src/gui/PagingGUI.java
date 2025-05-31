@@ -23,6 +23,7 @@ public class PagingGUI extends JPanel {
     private JList<String> memoryRowHeader;
     private JButton addButton;
     private JButton accessButton;
+    private JButton deleteButton;
     private JTable pagesTable;
 
 
@@ -58,6 +59,21 @@ public class PagingGUI extends JPanel {
         gbc.weightx = 0.6;
         JPanel pagesTableAndAccessMemoryPanel = createPagesTableAndAccessMemoryPanel();
         add(pagesTableAndAccessMemoryPanel, gbc);
+
+        // Thêm listener cho pagesTable để enable nút xóa khi chọn chương trình
+        // (sau khi pagesTable đã được khởi tạo trong createPagesTablePanel)
+        pagesTable.getSelectionModel().addListSelectionListener(e -> {
+            int selectedRow = pagesTable.getSelectedRow();
+            if (selectedRow >= 0 && !e.getValueIsAdjusting()) {
+                String programName = (String) pagesTable.getValueAt(selectedRow, 1);
+                // Không cho xóa OS
+                deleteButton.setEnabled(!"OS".equals(programName));
+            } else {
+                deleteButton.setEnabled(false);
+            }
+        });
+        // Thêm action cho deleteButton
+        deleteButton.addActionListener(e -> deleteSelectedProgram());
     }
 
 
@@ -509,8 +525,43 @@ public class PagingGUI extends JPanel {
         gbc.fill = GridBagConstraints.NONE;
         
         accessMemoryPanel.add(back, gbc);
-    
+
+        deleteButton = new JButton("Xóa chương trình");
+        deleteButton.setEnabled(false); // Ẩn ban đầu
+        gbc.gridx = 3;
+        gbc.gridy = 2;
+        gbc.gridwidth = 2; // Span across two columns
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.CENTER;
+        accessMemoryPanel.add(deleteButton, gbc);
+
         return accessMemoryPanel;
+    }
+
+
+    // Xóa chương trình được chọn trong bảng quản lý trang
+    private void deleteSelectedProgram() {
+        int selectedRow = pagesTable.getSelectedRow();
+        if (selectedRow >= 0) {
+            Integer pid = (Integer) pagesTable.getValueAt(selectedRow, 0);
+            String name = (String) pagesTable.getValueAt(selectedRow, 1);
+            if (pid == null || "OS".equals(name)) {
+                JOptionPane.showMessageDialog(this, "Không thể xóa chương trình hệ điều hành.", "Lỗi", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            Program program = paging.findProgramByPID(pid);
+            if (program == null) {
+                JOptionPane.showMessageDialog(this, "Không tìm thấy chương trình.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            int confirm = JOptionPane.showConfirmDialog(this, "Bạn có chắc muốn xóa chương trình '" + name + "'?", "Xác nhận", JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                paging.deleteProgram(program.getName());
+                updateMemoryTable();
+                updatePagesTable();
+                deleteButton.setEnabled(false);
+            }
+        }
     }
 
 

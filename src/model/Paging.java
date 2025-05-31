@@ -31,7 +31,6 @@ public class Paging {
         return frameSize;
     }
 
-
     // Add a program to memory
     public void addProgram(String name, int size, Color color) {
         // Validate input
@@ -71,6 +70,37 @@ public class Paging {
         programs.add(newProgram);
     }
 
+    public void deleteProgram(String name) {
+        Program target = null;
+
+        // Tìm chương trình theo tên
+        for (Program p : programs) {
+            if (p.getName().equals(name)) {
+                target = p;
+                break;
+            }
+        }
+
+        if (target == null) {
+            throw new IllegalArgumentException("Không tìm thấy chương trình có tên: " + name);
+        }
+
+        for (Page page : target.getPages()) {
+            int frame = page.getAddress();
+            freeFrames.add(frame);
+
+            int start = frame * frameSize;
+            int end = start + frameSize;
+            for (int i = start; i < end; i++) {
+                if (i < memory.size()) {
+                    memory.set(i, "Tự do");
+                }
+            }
+        }
+
+        // Xóa chương trình khỏi danh sách
+        programs.remove(target);
+    }
 
     // Initialize memory and OS program
     public void initializeMemory(int memorySize, int frameSize, int osSize) {
