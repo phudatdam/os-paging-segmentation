@@ -52,6 +52,15 @@ public class Segmentation {
         newSegment.setMark(1);
     }
 
+    public void removeSegment(int sid) {
+        Segment s = findSegmentBySID(sid);
+        if (s != null) {
+            for (int i = s.getAddress(); i < s.getAddress() + s.getLength(); i++) {
+                memory.set(i, "Tự do"); // hoặc " " nếu dùng chuỗi
+            }
+            segments.remove(s);
+        }
+    }
 
     // Initialize memory and OS segment
     public void initializeMemory(int memorySize, int osSize) {

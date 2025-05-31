@@ -21,6 +21,7 @@ public class SegmentationGUI extends JPanel {
     private final String[] memoryColumnNames = {""};
     private JList<String> memoryRowHeader;
     private JButton addButton;
+    private JButton deleteButton;
     private JButton accessButton;
     private JTable segmentsTable;
 
@@ -477,7 +478,26 @@ public class SegmentationGUI extends JPanel {
         gbc.fill = GridBagConstraints.NONE;
         
         accessMemoryPanel.add(back, gbc);
-    
+
+        deleteButton = new JButton("Xóa đoạn");
+        deleteButton.setEnabled(false); // Ẩn ban đầu
+        deleteButton.addActionListener(e -> deleteSelectedSegment());
+        gbc.gridx = 3;
+        gbc.gridy = 2;
+        gbc.gridwidth = 2; // Span across two columns
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.CENTER;
+        accessMemoryPanel.add(deleteButton, gbc);
+
+        segmentsTable.getSelectionModel().addListSelectionListener(e -> {
+            int selectedRow = segmentsTable.getSelectedRow();
+            if (selectedRow >= 0 && !e.getValueIsAdjusting()) {
+                String segmentName = (String) segmentsTable.getValueAt(selectedRow, 1);
+                deleteButton.setEnabled(!"OS".equals(segmentName)); // Hiện nút nếu không phải OS
+            } else {
+                deleteButton.setEnabled(false);
+            }
+        });
         return accessMemoryPanel;
     }
 
@@ -495,6 +515,26 @@ public class SegmentationGUI extends JPanel {
                 setForeground(Color.BLACK);
             }
             return this;
+        }
+    }
+
+    private void deleteSelectedSegment() {
+        int selectedRow = segmentsTable.getSelectedRow();
+        if (selectedRow >= 0) {
+            int sid = (int) segmentsTable.getValueAt(selectedRow, 0);
+            String name = (String) segmentsTable.getValueAt(selectedRow, 1);
+            if ("OS".equals(name)) {
+                JOptionPane.showMessageDialog(this, "Không thể xóa đoạn hệ điều hành.", "Lỗi", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            int confirm = JOptionPane.showConfirmDialog(this, "Bạn có chắc muốn xóa đoạn \"" + name + "\"?", "Xác nhận", JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                segmentation.removeSegment(sid); // Gọi phương thức từ Segmentation.java
+                updateMemoryTable();
+                updateSegmentsTable();
+                deleteButton.setVisible(false);
+            }
         }
     }
 
